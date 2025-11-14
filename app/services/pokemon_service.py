@@ -1,7 +1,6 @@
 from __future__ import annotations
 from typing import Iterable, List, Dict, Any
 
-from main import species
 from .poke_client import PokeClient
 from ..models import PokemonCard, SpriteUrls, EvolutionInfo
 
@@ -51,8 +50,12 @@ class PokemonService:
             species.get("flavor_text_entries", [])
         )
         #EVOLUTION INFO
-        evo_url = species.get("evolution_chain", {}).get("url")
-        evo_chain = self.client.get_evolution_chain_by_id(evo_url) if evo_url else None
+        try:
+            # Uses the helper that follows species → evolution_chain.url correctly
+            evo_chain = self.client.get_evolution_chain_for_species(name_or_id)
+        except Exception:
+            evo_chain = None
+
         evolution = (
             self._build_evolution_info(evo_chain, pname)
             if evo_chain
@@ -64,7 +67,7 @@ class PokemonService:
             height=height,
             weight=weight,
             types=types,
-            sprite=sprite_urls,
+            sprites=sprite_urls,
             description=description,
             evolution=evolution,
         )

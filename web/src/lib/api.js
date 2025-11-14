@@ -1,5 +1,5 @@
 // src/lib/api.js
-export const API_BASE = "http://127.0.0.1:8000";
+export const API_BASE = "https://pokemon-backend-wvbb.onrender.com"; // your Render URL
 
 export async function apiGet(path) {
     const res = await fetch(`${API_BASE}${path}`);

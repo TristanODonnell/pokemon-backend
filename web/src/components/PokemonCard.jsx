@@ -1,6 +1,11 @@
 export default function PokemonCard({ p }) {
+    // GUARD: If 'p' is undefined/null (no search yet), stop here.
+    // This prevents "Cannot read property of undefined" crashes.
     if (!p) return null;
 
+    // ASSET PRIORITY: We prefer the high-quality 'official' art.
+	// Using ?. (Optional Chaining) allows us to safely check deep
+    // nested objects without a crash if 'sprites' is missing.
     const img =
         p.sprites?.official ||
         p.sprites?.default ||

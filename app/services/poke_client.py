@@ -3,10 +3,11 @@ from typing import Any, Optional, Union
 import requests
 
 class PokeClient:
-    """
-    Thin HTTP client for PokéAPI.
-    Returns raw dicts (JSON) from the API.
-    Mapping into Pydantic models happens in the service layer.
+    """ Handles low-level HTTP communication with the PokéAPI.
+    Responsibilities:
+    - Session management (connection pooling)
+    - URL construction and normalization
+    - Raising exceptions for non-200 responses
     """
     def __init__(
         self,
@@ -25,7 +26,11 @@ class PokeClient:
 
     #LOW LEVEL SECTION
     def _get(self, path_or_url:str) -> dict[str, Any]:
-        """GET either a full URL or a path relative to base_url."""
+        """ Executes the HTTP GET request.
+        Supports both relative paths ('pokemon/1')
+        and absolute URLs (fetched from evolution chain links).
+        """
+
         url = (
             path_or_url
             if path_or_url.startswith("http")
@@ -36,7 +41,6 @@ class PokeClient:
         return resp.json()
 
 
-        # ---------- resources ----------
 
     def get_pokemon(self, name_or_id: Union[str, int]) -> dict[str, Any]:
         """/pokemon/{name_or_id}"""
@@ -53,9 +57,10 @@ class PokeClient:
     def get_evolution_chain_for_species(
             self, name_or_id: Union[str, int]
         ) -> dict[str, Any]:
-        """
-        Convenience: fetch species, then follow its evolution_chain.url.
-        """
+        """ A convenience wrapper that performs a 'Follow-the-Link' operation.
+        Because the evolution chain ID isn't the same as the Pokemon ID,
+         we must first fetch the species to find the correct evolution URL.
+         """
         species = self.get_species(name_or_id)
         evo_url = species["evolution_chain"]["url"]  # full URL from API
         return self._get(evo_url)

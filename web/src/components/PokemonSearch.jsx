@@ -1,21 +1,31 @@
 // src/components/PokemonSearch.jsx
+
 import { useState } from "react";
 import { fetchPokemon } from "../lib/api";
 
 export default function PokemonSearch() {
-    const [q, setQ] = useState("");
-    const [card, setCard] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [err, setErr] = useState("");
+    // State Management: These track the 'life' of a search request
+    const [q, setQ] = useState(""); // The raw user input
+    const [card, setCard] = useState(null); // The successful data from backend
+    const [loading, setLoading] = useState(false); // UI state for the button
+    const [err, setErr] = useState(""); // Error messages (404s, etc.)
+
 
     async function onSubmit(e) {
+        // Prevent the browser from reloading the page (Standard SPA behavior)
         e.preventDefault();
-        setErr(""); setCard(null); setLoading(true);
-        try { setCard(await fetchPokemon(q)); }
-        catch (e) { setErr(e.message || "Something went wrong."); }
-        finally { setLoading(false); }
+
+        // Reset UI state before starting a new search
+        setErr(""); setCard(null); setLoading(true); // Prep UI for new request
+        try { // The Handshake: Calling our API bridge to talk to the FastAPI backend
+            setCard(await fetchPokemon(q)); }
+        catch (e) {  // Catching backend/network errors and displaying them to the user
+            setErr(e.message || "Something went wrong."); }
+        finally { // Ensure the button is re-enabled regardless of success or failure
+            setLoading(false); }
     }
 
+    // Asset Selection: Heuristic to find the best image available in the data
     const img = card?.sprite?.official || card?.sprite?.default || "";
 
     return (

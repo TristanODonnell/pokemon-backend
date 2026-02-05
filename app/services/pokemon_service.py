@@ -5,36 +5,36 @@ from .poke_client import PokeClient
 from ..models import PokemonCard, SpriteUrls, EvolutionInfo
 
 class PokemonService:
-    """
-    High-level orchestration over PokeAPI.
-    - Fetches /pokemon and /pokemon-species (and the evolution chain)
-    - Normalizes data into your PokemonCard model
+    """ Orchestrates the stitching of multiple PokeAPI endpoints.
+    This layer is responsible for the 'Business Logic',
+    converting the raw, fragmented data of the PokeAPI
+    into a cohesive PokemonCard model for our frontend.
     """
 
     def __init__(self, client: PokeClient | None = None) -> None:
+        # Dependency Injection: Allows us to swap in a MockClient for testing.
         self.client = client or PokeClient()
 
     #PUBLIC API ----
     def get_pokemon_card(self, name_or_id: str | int) -> PokemonCard:
-        """
-        Build a normalized PokemonCard by stitching together:
-        - /pokemon (id, name, height, weight, types, sprites)
-        - /pokemon-species (flavor text + evolution chain URL)
-        - /evolution-chain (root -> ... -> current)
+        """ Coordinates three separate API calls to build a full data profile.
+        We fetch /pokemon and /species in parallel (conceptually)
+        to get the most complete view of the entity.
         """
         p = self.client.get_pokemon(name_or_id)
         species = self.client.get_species(name_or_id)
 
-        #IDENTITY AND SIZE
+        #Basic attribute extraction
         pid= p["id"]
         pname= p["name"]
         height= p["height"]
         weight= p["weight"]
 
-        #TYPES
+        # Types and Sprites extraction logic...
+        # Note: We drill into 'official-artwork' specifically because the
+        # default sprites are often too small for modern UI.
         types = [t["type"]["name"] for t in p.get("types", [])]
 
-        #SPRITES (front_default and official art)
         sprites = p.get("sprites", {})
         official = (
             sprites.get("other", {})
@@ -45,15 +45,18 @@ class PokemonService:
             default=sprites.get("front_default"),
             official=official,
         )
-        # ----- description (pick English if available)
         description = _pick_english_flavor_text(
             species.get("flavor_text_entries", [])
         )
-        #EVOLUTION INFO
+
+        # Evolution Handling: Graceful Degradation
         try:
-            # Uses the helper that follows species → evolution_chain.url correctly
+            # We wrap this in a try-block because evolution data is
+            # secondary to basic stats. If the chain fails, we still
+            # want to return the main Pokemon data.
             evo_chain = self.client.get_evolution_chain_for_species(name_or_id)
         except Exception:
+            # Fallback to a 'null' chain if the network fails or data is missing
             evo_chain = None
 
         evolution = (
@@ -96,10 +99,11 @@ class PokemonService:
 
     ####HELPER FUNCTIONS
 def _pick_english_flavor_text(entries: Iterable[Dict[str, Any]]) -> str | None:
+    """ Filters for English text and cleans legacy console formatting.
+    PokeAPI text contains '\f' (form feed) and '\n' from original GameBoy/DS internal data.
+    We strip these to avoid UI rendering bugs.
     """
-    Choose a readable English flavor text, prefer the most recent version group if present.
-    We also normalize line breaks/odd spaces that PokeAPI includes.
-    """
+
     # First pass: English entries
     english = [e for e in entries if e.get("language", {}).get("name") == "en"]
     if not english:
